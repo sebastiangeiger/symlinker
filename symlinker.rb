@@ -14,7 +14,9 @@ class Symlinker
     FileUtils.mkdir(@to)
     Dir["#{@from}/*"].each do |entry|
       relative_path = Symlinker.path_of(entry, relative_to: @from)
-      FileUtils.ln_s(entry, File.join(@to, "#{relative_path}"))
+      target = File.absolute_path(File.join(@to, "#{relative_path}"))
+      source = File.absolute_path(entry)
+      FileUtils.ln_s(source, target)
     end
   end
 
@@ -32,11 +34,19 @@ class Symlinker
 end
 
 describe Symlinker do
+  def create_file(full_path)
+    File.open(full_path, "w+") {|file| file.write "Created by create_file"}
+  end
+  def create_dir(full_path)
+    FileUtils.mkdir_p(full_path)
+  end
+
   describe '.new' do
     it "needs from and to" do
       Symlinker.new(from: "~/dotfiles", to: "~")
     end
   end
+
   describe '#link!' do
     before(:each) {
       FileUtils.rm_rf("sandbox")
@@ -44,11 +54,23 @@ describe Symlinker do
       FileUtils.mkdir("sandbox/existing")
     }
     it "symlinks files" do
-      FileUtils.touch("sandbox/existing/file")
+      create_file "sandbox/existing/file"
       Symlinker.new(from: "sandbox/existing", to: "sandbox/new").link!
       File.symlink?("sandbox/new/file").must_equal true
     end
+    it "symlinks directories" do
+      create_dir "sandbox/existing/dir"
+      Symlinker.new(from: "sandbox/existing", to: "sandbox/new").link!
+      File.symlink?("sandbox/new/dir").must_equal true
+    end
+    it "symlinks nested directories" do
+      create_dir  "sandbox/existing/dir"
+      create_file "sandbox/existing/dir/file"
+      Symlinker.new(from: "sandbox/existing", to: "sandbox/new").link!
+      IO.read("sandbox/new/dir/file").must_equal "Created by create_file"
+    end
   end
+
   describe '.path_to' do
     it "works" do
       Symlinker.path_of("a/b/c", relative_to: "a/b").must_equal "c"
