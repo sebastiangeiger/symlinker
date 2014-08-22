@@ -56,7 +56,7 @@ describe Symlinker do
     it "symlinks files" do
       create_file "sandbox/existing/file"
       Symlinker.new(from: "sandbox/existing", to: "sandbox/new").link!
-      File.symlink?("sandbox/new/file").must_equal true
+      IO.read("sandbox/new/file").must_equal "Created by create_file"
     end
     it "symlinks directories" do
       create_dir "sandbox/existing/dir"
