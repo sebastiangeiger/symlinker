@@ -38,9 +38,9 @@ class Symlinker
     if not file_already_there?(target)
       FileUtils.ln_s(source, target)
       @ui.linked(source, target)
-    elsif file_already_there?(target) and response == :override
+    elsif file_already_there?(target) and response == :overwrite
       FileUtils.ln_sf(source, target)
-      @ui.overridden(source, target)
+      @ui.overwritten(source, target)
     elsif file_already_there?(target) and not identical
       @ui.skipped(target)
     end
@@ -122,21 +122,21 @@ describe Symlinker do
           create_file "sandbox/new/file", "I was here first"
         end
         it 'asks the user how to proceed' do
-          ui.expect :file_exists, :dont_override, [File.absolute_path("sandbox/new/file")]
+          ui.expect :file_exists, :dont_overwrite, [File.absolute_path("sandbox/new/file")]
           ui.expect :skipped, :nil, [File.absolute_path("sandbox/new/file")]
           symlinker.link!
           ui.verify
         end
-        it 'does not touch the file if user says to not override' do
-          ui.expect :file_exists, :dont_override, [File.absolute_path("sandbox/new/file")]
+        it 'does not touch the file if user says to not overwrite' do
+          ui.expect :file_exists, :dont_overwrite, [File.absolute_path("sandbox/new/file")]
           ui.expect :skipped, :nil, [File.absolute_path("sandbox/new/file")]
           symlinker.link!
           ui.verify
           IO.read("sandbox/new/file").must_equal "I was here first"
         end
-        it 'changes file if user says to override' do
-          ui.expect :file_exists, :override, [File.absolute_path("sandbox/new/file")]
-          ui.expect :overridden, :nil, [File.absolute_path("sandbox/existing/file"),File.absolute_path("sandbox/new/file")]
+        it 'changes file if user says to overwrite' do
+          ui.expect :file_exists, :overwrite, [File.absolute_path("sandbox/new/file")]
+          ui.expect :overwritten, :nil, [File.absolute_path("sandbox/existing/file"),File.absolute_path("sandbox/new/file")]
           symlinker.link!
           ui.verify
           IO.read("sandbox/new/file").must_equal "File to be linked"
