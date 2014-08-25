@@ -1,3 +1,5 @@
+#TODO: erb expansion if contents are different
+#TODO: integrate into Rakefile
 require 'fileutils'
 
 class Symlinker
@@ -62,13 +64,13 @@ class SymlinkerUI
     @out.puts "#{relative_path(target)}: Linked to #{relative_path(source)}"
   end
   def overwritten(source, target)
-    linked(source, target)
+    @out.puts "#{relative_path(target)}: Linked to #{relative_path(source)} [Overwritten]"
   end
   def skipped(path)
     @out.puts "#{relative_path(path)}: Skipped"
   end
   def identical(path)
-    skipped(path)
+    @out.puts "#{relative_path(path)}: Identical"
   end
   def file_exists(path)
     decision = nil

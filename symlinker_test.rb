@@ -120,7 +120,7 @@ describe SymlinkerUI do
   describe '#overwritten' do
     it 'prints the right message' do
       ui.overwritten(File.absolute_path("sandbox/existing/file"),File.absolute_path("sandbox/new/file"))
-      output_stream.string.must_equal "sandbox/new/file: Linked to sandbox/existing/file\n"
+      output_stream.string.must_equal "sandbox/new/file: Linked to sandbox/existing/file [Overwritten]\n"
     end
   end
   describe '#skipped' do
@@ -132,7 +132,7 @@ describe SymlinkerUI do
   describe '#identical' do
     it 'prints the right message' do
       ui.identical(File.absolute_path("sandbox/new/file"))
-      output_stream.string.must_equal "sandbox/new/file: Skipped\n"
+      output_stream.string.must_equal "sandbox/new/file: Identical\n"
     end
   end
   describe '#file_exists' do
