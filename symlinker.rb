@@ -62,10 +62,13 @@ class SymlinkerUI
     @out = options[:out] || STDOUT
     @in = options[:in] || STDIN
   end
+  def linked(source, target)
+    @out.puts "#{relative_path(target)}: Linked to #{relative_path(source)}"
+  end
   def file_exists(path)
     decision = nil
     until decision
-      @out.print "overwrite #{path}? [y/n] "
+      @out.print "overwrite #{relative_path(path)}? [y/n] "
       decision = case @in.gets.chomp
       when 'y'
         :overwrite
@@ -76,6 +79,12 @@ class SymlinkerUI
       end
     end
     decision
+  end
+
+  private
+  def relative_path(path)
+    pwd = Pathname.new(Dir.pwd)
+    Pathname.new(path).relative_path_from(pwd).to_s
   end
 end
 
@@ -184,14 +193,20 @@ describe Symlinker do
 end
 
 describe SymlinkerUI do
+  let(:ui) { SymlinkerUI.new(out: output_stream, in: input_stream) }
+  let(:output_stream) { StringIO.new }
+  let(:input_stream) { MiniTest::Mock.new }
+  describe '#linked' do
+    it 'prints the right message' do
+      ui.linked(File.absolute_path("sandbox/existing/file"),File.absolute_path("sandbox/new/file"))
+      output_stream.string.must_equal "sandbox/new/file: Linked to sandbox/existing/file\n"
+    end
+  end
   describe '#file_exists' do
-    let(:ui) { SymlinkerUI.new(out: output_stream, in: input_stream) }
-    let(:output_stream) { StringIO.new }
-    let(:input_stream) { MiniTest::Mock.new }
     it 'prints the right thing' do
       input_stream.expect :gets, "y\n"
       ui.file_exists(File.absolute_path("sandbox/new/file"))
-      output_stream.string.must_equal "overwrite #{File.absolute_path("sandbox/new/file")}? [y/n] "
+      output_stream.string.must_equal "overwrite sandbox/new/file? [y/n] "
     end
     it 'returns :overwrite when user answers with "y"' do
       input_stream.expect :gets, "y\n"
@@ -207,7 +222,7 @@ describe SymlinkerUI do
       input_stream.expect :gets, "Something\n"
       input_stream.expect :gets, "y\n"
       ui.file_exists(File.absolute_path("sandbox/new/file")).must_equal :overwrite
-      output_stream.string.must_equal "overwrite #{File.absolute_path("sandbox/new/file")}? [y/n] overwrite #{File.absolute_path("sandbox/new/file")}? [y/n] "
+      output_stream.string.must_equal "overwrite sandbox/new/file? [y/n] overwrite sandbox/new/file? [y/n] "
     end
   end
 end
