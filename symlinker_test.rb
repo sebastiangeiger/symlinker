@@ -5,11 +5,15 @@ require 'minitest/pride'
 require 'pry'
 
 describe Symlinker do
-  def create_file(full_path, content = "Created by create_file")
-    File.open(full_path, "w+") {|file| file.write content}
+  def create_file(path, content = "Created by create_file", options = {})
+    absolute_path = File.absolute_path(path)
+    File.open(absolute_path, "w+") {|file| file.write content}
+    if options[:mtime]
+      FileUtils.touch(absolute_path, mtime: options[:mtime])
+    end
   end
-  def create_dir(full_path)
-    FileUtils.mkdir_p(full_path)
+  def create_dir(path)
+    FileUtils.mkdir_p(path)
   end
   def link_file(source, target)
     FileUtils.ln_s(File.absolute_path(source), File.absolute_path(target))
@@ -99,13 +103,30 @@ describe Symlinker do
       end
     end
     describe 'with erb files' do
-      it 'expands the file first' do
-        ui.expect :generated, nil, [File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file")]
-        ENV['variable'] = "World"
-        create_file "sandbox/existing/file.erb", "Hello, <%= ENV['variable'] %>!"
-        symlinker.link!
-        ui.verify
-        IO.read("sandbox/new/file").must_equal "Hello, World!"
+      describe 'when the file does not exist' do
+        it 'expands the file first' do
+          ui.expect :generated, nil, [File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file")]
+          ENV['variable'] = "World"
+          create_file "sandbox/existing/file.erb", "Hello, <%= ENV['variable'] %>!"
+          symlinker.link!
+          ui.verify
+          IO.read("sandbox/new/file").must_equal "Hello, World!"
+        end
+      end
+      describe 'when the file exists but is identical' do
+        before(:each) do
+          create_dir "sandbox/new"
+          create_file "sandbox/new/file", "Hello, World!", mtime: Time.now - 3660
+        end
+        it 'expands the file first' do
+          ui.expect :identical, nil, [File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file")]
+          ENV['variable'] = "World"
+          create_file "sandbox/existing/file.erb", "Hello, <%= ENV['variable'] %>!"
+          symlinker.link!
+          ui.verify
+          IO.read("sandbox/new/file").must_equal "Hello, World!"
+          File.mtime("sandbox/new/file").must_be_close_to Time.now - 3600, 100
+        end
       end
     end
   end

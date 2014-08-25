@@ -9,6 +9,7 @@ class Symlinker
     @ui   = options[:ui] || SymlinkerUI.new
     raise unless @to and @from
   end
+
   def link!
     FileUtils.mkdir(@to) unless File.directory?(@to)
     Dir["#{@from}/*"].each do |entry|
@@ -45,16 +46,31 @@ class Symlinker
       @ui.skipped(target)
     end
   end
+
   def generate_file(source, target)
-    File.open(target, 'w') do |new_file|
-      content = ERB.new(File.read(source)).result(binding)
-      new_file.write content
+    content = ERB.new(File.read(source)).result(binding)
+    if file_already_there?(target) and same_content?(content, target)
+      @ui.identical(source, target)
+      action = :dont_write
+    elsif not file_already_there?(target)
+      action = :write
     end
-    @ui.generated(source, target)
+    if action == :write or action == :overwrite
+      File.open(target, 'w') do |new_file|
+        new_file.write content
+      end
+      @ui.generated(source, target)
+    end
   end
+
   def file_already_there?(path)
     File.exists?(path) or File.symlink?(path)
   end
+
+  def same_content?(content, file)
+    IO.read(file) == content
+  end
+
   def self.path_of(path, options = {})
     relative_to = options[:relative_to]
     relative_to_atoms = relative_to.split("/")
