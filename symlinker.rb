@@ -59,10 +59,23 @@ end
 
 class SymlinkerUI
   def initialize(options = {})
-    @out = options[:out]
+    @out = options[:out] || STDOUT
+    @in = options[:in] || STDIN
   end
   def file_exists(path)
-    @out.print "overwrite #{path}? [ynaq] "
+    decision = nil
+    until decision
+      @out.print "overwrite #{path}? [y/n] "
+      decision = case @in.gets.chomp
+      when 'y'
+        :overwrite
+      when 'n'
+        :dont_overwrite
+      else
+        nil
+      end
+    end
+    decision
   end
 end
 
@@ -172,11 +185,29 @@ end
 
 describe SymlinkerUI do
   describe '#file_exists' do
-    let(:ui) { SymlinkerUI.new(out: out) }
-    let(:out) { StringIO.new }
+    let(:ui) { SymlinkerUI.new(out: output_stream, in: input_stream) }
+    let(:output_stream) { StringIO.new }
+    let(:input_stream) { MiniTest::Mock.new }
     it 'prints the right thing' do
+      input_stream.expect :gets, "y\n"
       ui.file_exists(File.absolute_path("sandbox/new/file"))
-      out.string.must_equal "overwrite #{File.absolute_path("sandbox/new/file")}? [ynaq] "
+      output_stream.string.must_equal "overwrite #{File.absolute_path("sandbox/new/file")}? [y/n] "
+    end
+    it 'returns :overwrite when user answers with "y"' do
+      input_stream.expect :gets, "y\n"
+      ui.file_exists(File.absolute_path("sandbox/new/file")).must_equal :overwrite
+      input_stream.verify
+    end
+    it 'returns :dont_overwrite when user answers with "n"' do
+      input_stream.expect :gets, "n\n"
+      ui.file_exists(File.absolute_path("sandbox/new/file")).must_equal :dont_overwrite
+      input_stream.verify
+    end
+    it 'asks again when the answer did not compute' do
+      input_stream.expect :gets, "Something\n"
+      input_stream.expect :gets, "y\n"
+      ui.file_exists(File.absolute_path("sandbox/new/file")).must_equal :overwrite
+      output_stream.string.must_equal "overwrite #{File.absolute_path("sandbox/new/file")}? [y/n] overwrite #{File.absolute_path("sandbox/new/file")}? [y/n] "
     end
   end
 end
