@@ -23,10 +23,14 @@ class Symlinker
 
   private
   def link_helper(source,target)
-    if File.exists?(target)
-      response = @ui.file_exists(target)
+    if File.exists?(target) or File.symlink?(target)
+      if File.identical?(source,target)
+        @ui.identical(target)
+      else
+        response = @ui.file_exists(target)
+      end
     end
-    if not File.exists?(target)
+    if not File.exists?(target) and not File.symlink?(target)
       FileUtils.ln_s(source, target)
     elsif File.exists?(target) and response == :override
       FileUtils.ln_sf(source, target)
@@ -50,6 +54,9 @@ describe Symlinker do
   end
   def create_dir(full_path)
     FileUtils.mkdir_p(full_path)
+  end
+  def link_file(source, target)
+    FileUtils.ln_s(File.absolute_path(source), File.absolute_path(target))
   end
 
   describe '.new' do
@@ -89,24 +96,38 @@ describe Symlinker do
     end
     describe 'when the file already exists' do
       before(:each) do
-        create_file "sandbox/existing/file", "New file"
         create_dir  "sandbox/new"
-        create_file "sandbox/new/file", "Existing file"
+          create_file "sandbox/existing/file", "File to be linked"
       end
-      it 'asks the user how to proceed' do
-        ui.expect :file_exists, :dont_override, [File.absolute_path("sandbox/new/file")]
-        symlinker.link!
-        ui.verify
+      describe 'and they are different' do
+        before(:each) do
+          create_file "sandbox/new/file", "I was here first"
+        end
+        it 'asks the user how to proceed' do
+          ui.expect :file_exists, :dont_override, [File.absolute_path("sandbox/new/file")]
+          symlinker.link!
+          ui.verify
+        end
+        it 'does not touch the file if user says to not override' do
+          ui.expect :file_exists, :dont_override, [File.absolute_path("sandbox/new/file")]
+          symlinker.link!
+          IO.read("sandbox/new/file").must_equal "I was here first"
+        end
+        it 'changes file if user says to override' do
+          ui.expect :file_exists, :override, [File.absolute_path("sandbox/new/file")]
+          symlinker.link!
+          IO.read("sandbox/new/file").must_equal "File to be linked"
+        end
       end
-      it 'does not touch the file if user says to not override' do
-        ui.expect :file_exists, :dont_override, [File.absolute_path("sandbox/new/file")]
-        symlinker.link!
-        IO.read("sandbox/new/file").must_equal "Existing file"
-      end
-      it 'changes file if user says to override' do
-        ui.expect :file_exists, :override, [File.absolute_path("sandbox/new/file")]
-        symlinker.link!
-        IO.read("sandbox/new/file").must_equal "New file"
+      describe 'and they are identical' do
+        before(:each) do
+          link_file "sandbox/existing/file", "sandbox/new/file"
+        end
+        it 'does not ask the user' do
+          ui.expect :identical, nil, [File.absolute_path("sandbox/new/file")]
+          symlinker.link!
+          ui.verify
+        end
       end
     end
   end
