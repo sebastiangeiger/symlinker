@@ -44,6 +44,7 @@ describe Symlinker do
   describe '.new' do
     it "needs from and to" do
       Symlinker.new(from: "~/dotfiles", to: "~")
+      proc { Symlinker.new(from: "~/dotfiles") }.must_raise RuntimeError
     end
   end
 
@@ -53,20 +54,23 @@ describe Symlinker do
       FileUtils.mkdir("sandbox")
       FileUtils.mkdir("sandbox/existing")
     }
+    let(:symlinker) do
+      Symlinker.new(from: "sandbox/existing", to: "sandbox/new")
+    end
     it "symlinks files" do
       create_file "sandbox/existing/file"
-      Symlinker.new(from: "sandbox/existing", to: "sandbox/new").link!
+      symlinker.link!
       IO.read("sandbox/new/file").must_equal "Created by create_file"
     end
     it "symlinks directories" do
       create_dir "sandbox/existing/dir"
-      Symlinker.new(from: "sandbox/existing", to: "sandbox/new").link!
+      symlinker.link!
       File.symlink?("sandbox/new/dir").must_equal true
     end
     it "symlinks nested directories" do
       create_dir  "sandbox/existing/dir"
       create_file "sandbox/existing/dir/file"
-      Symlinker.new(from: "sandbox/existing", to: "sandbox/new").link!
+      symlinker.link!
       IO.read("sandbox/new/dir/file").must_equal "Created by create_file"
     end
   end
