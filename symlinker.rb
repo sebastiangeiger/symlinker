@@ -4,9 +4,6 @@ require 'minitest/pride'
 require 'fileutils'
 require 'pry'
 
-class SymlinkerUI
-end
-
 class Symlinker
   def initialize(options = {})
     @from = options[:from]
@@ -59,6 +56,16 @@ class Symlinker
     path_atoms.join("/")
   end
 end
+
+class SymlinkerUI
+  def initialize(options = {})
+    @out = options[:out]
+  end
+  def file_exists(path)
+    @out.print "overwrite #{path}? [ynaq] "
+  end
+end
+
 
 describe Symlinker do
   def create_file(full_path, content = "Created by create_file")
@@ -159,6 +166,17 @@ describe Symlinker do
   describe '.path_to' do
     it "works" do
       Symlinker.path_of("a/b/c", relative_to: "a/b").must_equal "c"
+    end
+  end
+end
+
+describe SymlinkerUI do
+  describe '#file_exists' do
+    let(:ui) { SymlinkerUI.new(out: out) }
+    let(:out) { StringIO.new }
+    it 'prints the right thing' do
+      ui.file_exists(File.absolute_path("sandbox/new/file"))
+      out.string.must_equal "overwrite #{File.absolute_path("sandbox/new/file")}? [ynaq] "
     end
   end
 end
