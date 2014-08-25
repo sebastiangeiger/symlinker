@@ -16,6 +16,7 @@ class Symlinker
       target = File.absolute_path(File.join(@to, "#{relative_path}"))
       source = File.absolute_path(entry)
       if source =~ /\.erb$/
+        target = target.gsub(/\.erb$/,'')
         generate_file(source, target)
       else
         link_helper(source, target)
@@ -45,11 +46,11 @@ class Symlinker
     end
   end
   def generate_file(source, target)
-    target_without_erb = target.gsub(/\.erb$/,'')
-    File.open(target_without_erb, 'w') do |new_file|
+    File.open(target, 'w') do |new_file|
       content = ERB.new(File.read(source)).result(binding)
       new_file.write content
     end
+    @ui.generated(source, target)
   end
   def file_already_there?(path)
     File.exists?(path) or File.symlink?(path)
@@ -82,6 +83,9 @@ class SymlinkerUI
   end
   def identical(path)
     @out.puts "#{relative_path(path)}: Identical"
+  end
+  def generated(source, target)
+    @out.puts "#{relative_path(target)}: Generated from #{relative_path(source)}"
   end
   def file_exists(path)
     decision = nil

@@ -100,10 +100,11 @@ describe Symlinker do
     end
     describe 'with erb files' do
       it 'expands the file first' do
-        ui.expect :generated, nil, [File.absolute_path("sandbox/new/file")]
+        ui.expect :generated, nil, [File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file")]
         ENV['variable'] = "World"
         create_file "sandbox/existing/file.erb", "Hello, <%= ENV['variable'] %>!"
         symlinker.link!
+        ui.verify
         IO.read("sandbox/new/file").must_equal "Hello, World!"
       end
     end
@@ -142,6 +143,12 @@ describe SymlinkerUI do
     it 'prints the right message' do
       ui.identical(File.absolute_path("sandbox/new/file"))
       output_stream.string.must_equal "sandbox/new/file: Identical\n"
+    end
+  end
+  describe '#generated' do
+    it 'prints the right message' do
+      ui.generated(File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file"))
+      output_stream.string.must_equal "sandbox/new/file: Generated from sandbox/existing/file.erb\n"
     end
   end
   describe '#file_exists' do
