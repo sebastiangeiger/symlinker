@@ -4,11 +4,14 @@ require 'minitest/pride'
 require 'fileutils'
 require 'pry'
 
+class SymlinkerUI
+end
+
 class Symlinker
   def initialize(options = {})
     @from = options[:from]
     @to   = options[:to]
-    @ui   = options[:ui]
+    @ui   = options[:ui] || SymlinkerUI.new
     raise unless @to and @from
   end
   def link!
@@ -23,9 +26,11 @@ class Symlinker
 
   private
   def link_helper(source,target)
+    identical = false
     if file_already_there?(target)
       if File.identical?(source,target)
         @ui.identical(target)
+        identical = true
       else
         response = @ui.file_exists(target)
       end
@@ -36,7 +41,7 @@ class Symlinker
     elsif file_already_there?(target) and response == :override
       FileUtils.ln_sf(source, target)
       @ui.overridden(source, target)
-    elsif file_already_there?(target)
+    elsif file_already_there?(target) and not identical
       @ui.skipped(target)
     end
   end
@@ -143,7 +148,6 @@ describe Symlinker do
         end
         it 'does not ask the user' do
           ui.expect :identical, nil, [File.absolute_path("sandbox/new/file")]
-          ui.expect :skipped, :nil, [File.absolute_path("sandbox/new/file")]
           symlinker.link!
           ui.verify
           IO.read("sandbox/new/file").must_equal "File to be linked"
