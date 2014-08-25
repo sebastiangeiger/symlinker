@@ -8,6 +8,7 @@ class Symlinker
   def initialize(options = {})
     @from = options[:from]
     @to   = options[:to]
+    @ui   = options[:ui]
     raise unless @to and @from
   end
   def link!
@@ -33,9 +34,12 @@ class Symlinker
   end
 end
 
+class SymlinkerUI
+end
+
 describe Symlinker do
-  def create_file(full_path)
-    File.open(full_path, "w+") {|file| file.write "Created by create_file"}
+  def create_file(full_path, content = "Created by create_file")
+    File.open(full_path, "w+") {|file| file.write content}
   end
   def create_dir(full_path)
     FileUtils.mkdir_p(full_path)
@@ -55,7 +59,10 @@ describe Symlinker do
       FileUtils.mkdir("sandbox/existing")
     }
     let(:symlinker) do
-      Symlinker.new(from: "sandbox/existing", to: "sandbox/new")
+      Symlinker.new(from: "sandbox/existing", to: "sandbox/new", ui: ui)
+    end
+    let(:ui) do
+      MiniTest::Mock.new
     end
     it "symlinks files" do
       create_file "sandbox/existing/file"
@@ -71,6 +78,16 @@ describe Symlinker do
       create_dir  "sandbox/existing/dir"
       create_file "sandbox/existing/dir/file"
       symlinker.link!
+      IO.read("sandbox/new/dir/file").must_equal "Created by create_file"
+    end
+    it "symlinks nested directories" do
+      create_file "sandbox/existing/file", "New file"
+      create_dir  "sandbox/new"
+      create_file "sandbox/new/file", "Existing file"
+      ui.expect :file_exists, :dont_override, ["sandbox/new/file"]
+      symlinker.link!
+      ui.verify
+      IO.read("sandbox/new/dir/file").must_equal "Created by create_file"
       IO.read("sandbox/new/dir/file").must_equal "Created by create_file"
     end
   end
