@@ -1,6 +1,6 @@
-#TODO: erb expansion if contents are different
 #TODO: integrate into Rakefile
 require 'fileutils'
+require 'erb'
 
 class Symlinker
   def initialize(options = {})
@@ -15,7 +15,11 @@ class Symlinker
       relative_path = Symlinker.path_of(entry, relative_to: @from)
       target = File.absolute_path(File.join(@to, "#{relative_path}"))
       source = File.absolute_path(entry)
-      link_helper(source, target)
+      if source =~ /\.erb$/
+        generate_file(source, target)
+      else
+        link_helper(source, target)
+      end
     end
   end
 
@@ -38,6 +42,13 @@ class Symlinker
       @ui.overwritten(source, target)
     elsif file_already_there?(target) and not identical
       @ui.skipped(target)
+    end
+  end
+  def generate_file(source, target)
+    target_without_erb = target.gsub(/\.erb$/,'')
+    File.open(target_without_erb, 'w') do |new_file|
+      content = ERB.new(File.read(source)).result(binding)
+      new_file.write content
     end
   end
   def file_already_there?(path)

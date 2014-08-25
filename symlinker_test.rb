@@ -98,6 +98,15 @@ describe Symlinker do
         end
       end
     end
+    describe 'with erb files' do
+      it 'expands the file first' do
+        ui.expect :generated, nil, [File.absolute_path("sandbox/new/file")]
+        ENV['variable'] = "World"
+        create_file "sandbox/existing/file.erb", "Hello, <%= ENV['variable'] %>!"
+        symlinker.link!
+        IO.read("sandbox/new/file").must_equal "Hello, World!"
+      end
+    end
   end
 
   describe '.path_to' do
