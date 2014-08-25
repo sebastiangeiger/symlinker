@@ -23,18 +23,25 @@ class Symlinker
 
   private
   def link_helper(source,target)
-    if File.exists?(target) or File.symlink?(target)
+    if file_already_there?(target)
       if File.identical?(source,target)
         @ui.identical(target)
       else
         response = @ui.file_exists(target)
       end
     end
-    if not File.exists?(target) and not File.symlink?(target)
+    if not file_already_there?(target)
       FileUtils.ln_s(source, target)
-    elsif File.exists?(target) and response == :override
+      @ui.linked(source, target)
+    elsif file_already_there?(target) and response == :override
       FileUtils.ln_sf(source, target)
+      @ui.overridden(source, target)
+    elsif file_already_there?(target)
+      @ui.skipped(target)
     end
+  end
+  def file_already_there?(path)
+    File.exists?(path) or File.symlink?(path)
   end
   def self.path_of(path, options = {})
     relative_to = options[:relative_to]
@@ -79,19 +86,25 @@ describe Symlinker do
       MiniTest::Mock.new
     end
     it "symlinks files" do
+      ui.expect :linked, nil, [File.absolute_path("sandbox/existing/file"), File.absolute_path("sandbox/new/file")]
       create_file "sandbox/existing/file"
       symlinker.link!
+      ui.verify
       IO.read("sandbox/new/file").must_equal "Created by create_file"
     end
     it "symlinks directories" do
+      ui.expect :linked, nil, [File.absolute_path("sandbox/existing/dir"), File.absolute_path("sandbox/new/dir")]
       create_dir "sandbox/existing/dir"
       symlinker.link!
+      ui.verify
       File.symlink?("sandbox/new/dir").must_equal true
     end
     it "symlinks nested directories" do
+      ui.expect :linked, nil, [File.absolute_path("sandbox/existing/dir"), File.absolute_path("sandbox/new/dir")]
       create_dir  "sandbox/existing/dir"
       create_file "sandbox/existing/dir/file"
       symlinker.link!
+      ui.verify
       IO.read("sandbox/new/dir/file").must_equal "Created by create_file"
     end
     describe 'when the file already exists' do
@@ -105,17 +118,22 @@ describe Symlinker do
         end
         it 'asks the user how to proceed' do
           ui.expect :file_exists, :dont_override, [File.absolute_path("sandbox/new/file")]
+          ui.expect :skipped, :nil, [File.absolute_path("sandbox/new/file")]
           symlinker.link!
           ui.verify
         end
         it 'does not touch the file if user says to not override' do
           ui.expect :file_exists, :dont_override, [File.absolute_path("sandbox/new/file")]
+          ui.expect :skipped, :nil, [File.absolute_path("sandbox/new/file")]
           symlinker.link!
+          ui.verify
           IO.read("sandbox/new/file").must_equal "I was here first"
         end
         it 'changes file if user says to override' do
           ui.expect :file_exists, :override, [File.absolute_path("sandbox/new/file")]
+          ui.expect :overridden, :nil, [File.absolute_path("sandbox/existing/file"),File.absolute_path("sandbox/new/file")]
           symlinker.link!
+          ui.verify
           IO.read("sandbox/new/file").must_equal "File to be linked"
         end
       end
@@ -125,8 +143,10 @@ describe Symlinker do
         end
         it 'does not ask the user' do
           ui.expect :identical, nil, [File.absolute_path("sandbox/new/file")]
+          ui.expect :skipped, :nil, [File.absolute_path("sandbox/new/file")]
           symlinker.link!
           ui.verify
+          IO.read("sandbox/new/file").must_equal "File to be linked"
         end
       end
     end
@@ -137,5 +157,4 @@ describe Symlinker do
       Symlinker.path_of("a/b/c", relative_to: "a/b").must_equal "c"
     end
   end
-
 end
