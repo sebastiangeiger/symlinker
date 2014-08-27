@@ -13,7 +13,7 @@ class Symlinker
     raise unless @to and @from
   end
 
-  def ignore(*files)
+  def ignore(files)
     @ignored += files
     self
   end
@@ -35,15 +35,7 @@ class Symlinker
 
   private
   def entries_to_link
-    entries = Dir["#{@from}/*"]
-    # unless @ignored.empty?
-    #   p "<>"
-    #   p @ignored
-    #   p entries
-    #   p a
-    #   p "</>"
-    # end
-    entries.reject do |entry|
+    Dir["#{@from}/*"].reject do |entry|
       relative_path = remove_beginning(@from, entry)
       without_leading_slash = remove_beginning("/", relative_path)
       @ignored.include? relative_path or

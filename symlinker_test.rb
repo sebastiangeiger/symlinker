@@ -3,7 +3,6 @@ require 'minitest/spec'
 require 'minitest/autorun'
 require 'minitest/pride'
 require 'stringio'
-require 'pry'
 
 describe Symlinker do
   def create_file(path, content = "Created by create_file", options = {})
@@ -42,7 +41,7 @@ describe Symlinker do
         create_file "sandbox/from/file_2"
       end
       it 'does not link the ignored file' do
-        symlinker.ignore("file_2").link!
+        symlinker.ignore(["file_2"]).link!
         File.symlink?("sandbox/to/file_1").must_equal true
         File.symlink?("sandbox/to/file_2").must_equal false
       end
@@ -57,7 +56,7 @@ describe Symlinker do
         create_file "sandbox/from/dir_2/file_2"
       end
       it 'does not link the ignored file' do
-        symlinker.ignore("file_2","dir_1").link!
+        symlinker.ignore(["file_2","dir_1"]).link!
         File.symlink?("sandbox/to/file_1").must_equal true
         File.symlink?("sandbox/to/file_2").must_equal false
         File.exists?("sandbox/to/file_2").must_equal false
