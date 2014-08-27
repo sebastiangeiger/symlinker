@@ -27,6 +27,49 @@ describe Symlinker do
     end
   end
 
+  describe '#ignore' do
+    before(:each) do
+      FileUtils.rm_rf("sandbox")
+      FileUtils.mkdir("sandbox")
+      FileUtils.mkdir("sandbox/from")
+    end
+    let(:symlinker) do
+      Symlinker.new(from: "sandbox/from", to: "sandbox/to", ui: SilentUi.new)
+    end
+    describe 'with two files to be linked' do
+      before(:each) do
+        create_file "sandbox/from/file_1"
+        create_file "sandbox/from/file_2"
+      end
+      it 'does not link the ignored file' do
+        symlinker.ignore("file_2").link!
+        File.symlink?("sandbox/to/file_1").must_equal true
+        File.symlink?("sandbox/to/file_2").must_equal false
+      end
+    end
+    describe 'with one directory to be linked' do
+      before(:each) do
+        create_dir "sandbox/from/dir_1"
+        create_dir "sandbox/from/dir_2"
+        create_file "sandbox/from/file_1"
+        create_file "sandbox/from/file_2"
+        create_file "sandbox/from/dir_1/file_1"
+        create_file "sandbox/from/dir_2/file_2"
+      end
+      it 'does not link the ignored file' do
+        symlinker.ignore("file_2","dir_1").link!
+        File.symlink?("sandbox/to/file_1").must_equal true
+        File.symlink?("sandbox/to/file_2").must_equal false
+        File.exists?("sandbox/to/file_2").must_equal false
+        File.symlink?("sandbox/to/dir_1").must_equal false
+        File.exists?("sandbox/to/dir_1").must_equal false
+        File.symlink?("sandbox/to/dir_1/file_1").must_equal false
+        File.exists?("sandbox/to/dir_1/file_1").must_equal false
+        File.exists?("sandbox/to/dir_2/file_2").must_equal true
+      end
+    end
+  end
+
   describe '#link!' do
     before(:each) {
       FileUtils.rm_rf("sandbox")
@@ -227,4 +270,8 @@ describe SymlinkerUI do
       output_stream.string.must_equal "Overwrite sandbox/to/file? [y/n] Overwrite sandbox/to/file? [y/n] "
     end
   end
+end
+
+class SilentUi
+  def linked(a,b); end
 end

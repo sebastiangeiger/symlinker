@@ -6,15 +6,21 @@ require 'pathname'
 
 class Symlinker
   def initialize(options = {})
-    @from = options[:from]
-    @to   = options[:to]
-    @ui   = options[:ui] || SymlinkerUI.new
+    @from    = options[:from]
+    @to      = options[:to]
+    @ui      = options[:ui] || SymlinkerUI.new
+    @ignored = []
     raise unless @to and @from
+  end
+
+  def ignore(*files)
+    @ignored += files
+    self
   end
 
   def link!
     FileUtils.mkdir(@to) unless File.directory?(@to)
-    Dir["#{@from}/*"].each do |entry|
+    entries_to_link.each do |entry|
       relative_path = Symlinker.path_of(entry, relative_to: @from)
       target = File.absolute_path(File.join(@to, "#{relative_path}"))
       source = File.absolute_path(entry)
@@ -28,6 +34,31 @@ class Symlinker
   end
 
   private
+  def entries_to_link
+    entries = Dir["#{@from}/*"]
+    # unless @ignored.empty?
+    #   p "<>"
+    #   p @ignored
+    #   p entries
+    #   p a
+    #   p "</>"
+    # end
+    entries.reject do |entry|
+      relative_path = remove_beginning(@from, entry)
+      without_leading_slash = remove_beginning("/", relative_path)
+      @ignored.include? relative_path or
+        @ignored.include? without_leading_slash
+    end
+  end
+
+  def remove_beginning(beginning, full_string)
+    if full_string.start_with? beginning
+      full_string[beginning.length, full_string.length - beginning.length]
+    else
+      full_string
+    end
+  end
+
   def link_helper(source,target)
     if file_already_there?(target) and File.identical?(source,target)
       @ui.identical(target)
