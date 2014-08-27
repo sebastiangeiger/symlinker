@@ -11,6 +11,7 @@ class Symlinker
     @ui      = options[:ui] || SymlinkerUI.new
     @ignored = []
     @prefix  = ""
+    @dry_run = false
     raise unless @to and @from
   end
 
@@ -24,8 +25,15 @@ class Symlinker
     self
   end
 
+  def dry_run
+    @dry_run = true
+    self
+  end
+
   def link!
-    FileUtils.mkdir(@to) unless File.directory?(@to)
+    if_not_dry_run do
+      FileUtils.mkdir(@to) unless File.directory?(@to)
+    end
     entries_to_link.each do |entry|
       relative_path = Symlinker.path_of(entry, relative_to: @from)
       relative_path = @prefix + relative_path
@@ -64,13 +72,17 @@ class Symlinker
       identical = true
     elsif file_already_there?(target)
       if @ui.file_exists(target) == :overwrite
-        FileUtils.ln_sf(source, target)
+        if_not_dry_run do
+          FileUtils.ln_sf(source, target)
+        end
         @ui.overwritten(source, target)
       else
         @ui.skipped(target)
       end
     else
-      FileUtils.ln_s(source, target)
+      if_not_dry_run do
+        FileUtils.ln_s(source, target)
+      end
       @ui.linked(source, target)
     end
   end
@@ -78,8 +90,10 @@ class Symlinker
   def generate_file(source, target)
     content = ERB.new(File.read(source)).result(binding)
     write_file = lambda do
-      File.open(target, 'w') do |new_file|
-        new_file.write content
+      if_not_dry_run do
+        File.open(target, 'w') do |new_file|
+          new_file.write content
+        end
       end
     end
     if file_already_there?(target) and same_content?(content, target)
@@ -114,6 +128,16 @@ class Symlinker
       relative_to_atoms.shift
     end
     path_atoms.join("/")
+  end
+
+  def if_not_dry_run(&block)
+    if @dry_run
+      file, line = block.source_location
+      code_snippet = IO.read(file).split("\n")[line-3 .. line+3]
+      @ui.puts "Not executing the following line:\n#{code_snippet}"
+    else
+      block.call
+    end
   end
 end
 
@@ -158,6 +182,9 @@ class SymlinkerUI
       end
     end
     decision
+  end
+  def puts(string)
+    @out.puts string
   end
 
   private

@@ -5,6 +5,12 @@ require 'minitest/pride'
 require 'stringio'
 
 describe Symlinker do
+  before(:each) do
+    FileUtils.rm_rf("sandbox")
+    FileUtils.mkdir("sandbox")
+    FileUtils.mkdir("sandbox/from")
+  end
+
   def create_file(path, content = "Created by create_file", options = {})
     absolute_path = File.absolute_path(path)
     File.open(absolute_path, "w+") {|file| file.write content}
@@ -27,11 +33,6 @@ describe Symlinker do
   end
 
   describe '#prepend' do
-    before(:each) do
-      FileUtils.rm_rf("sandbox")
-      FileUtils.mkdir("sandbox")
-      FileUtils.mkdir("sandbox/from")
-    end
     let(:symlinker) do
       Symlinker.new(from: "sandbox/from", to: "sandbox/to", ui: SilentUi.new)
     end
@@ -49,11 +50,6 @@ describe Symlinker do
   end
 
   describe '#ignore' do
-    before(:each) do
-      FileUtils.rm_rf("sandbox")
-      FileUtils.mkdir("sandbox")
-      FileUtils.mkdir("sandbox/from")
-    end
     let(:symlinker) do
       Symlinker.new(from: "sandbox/from", to: "sandbox/to", ui: SilentUi.new)
     end
@@ -91,12 +87,28 @@ describe Symlinker do
     end
   end
 
+  describe '#dry_run' do
+    let(:ui) { SilentUi.new }
+    let(:symlinker) do
+      Symlinker.new(from: "sandbox/from", to: "sandbox/to", ui: ui)
+    end
+    it "symlinks files when dry_run absent" do
+      create_file "sandbox/from/file"
+      symlinker.link!
+      IO.read("sandbox/to/file").must_equal "Created by create_file"
+    end
+    it "does not symlink files when dry_run present" do
+      create_file "sandbox/from/file"
+      symlinker.dry_run.link!
+      File.symlink?("sandbox/to/file").must_equal false
+      File.exists?("sandbox/to/file").must_equal false
+      ui.messages.join("").must_include "Not executing the following line"
+      ui.messages.join("").must_include "FileUtils.ln_s"
+    end
+
+  end
+
   describe '#link!' do
-    before(:each) {
-      FileUtils.rm_rf("sandbox")
-      FileUtils.mkdir("sandbox")
-      FileUtils.mkdir("sandbox/from")
-    }
     let(:symlinker) do
       Symlinker.new(from: "sandbox/from", to: "sandbox/to", ui: ui)
     end
@@ -294,5 +306,12 @@ describe SymlinkerUI do
 end
 
 class SilentUi
+  attr_reader :messages
+  def initialize
+    @messages = []
+  end
   def linked(a,b); end
+  def puts(string)
+    @messages << string
+  end
 end
