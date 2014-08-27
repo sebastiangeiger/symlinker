@@ -133,7 +133,7 @@ class Symlinker
   def if_not_dry_run(&block)
     if @dry_run
       file, line = block.source_location
-      code_snippet = IO.read(file).split("\n")[line-3 .. line+3]
+      code_snippet = IO.read(file).split("\n")[line-2 .. line+2].join("\n")
       @ui.puts "Not executing the following line:\n#{code_snippet}"
     else
       block.call
@@ -170,8 +170,8 @@ class SymlinkerUI
   def file_exists(path, diff = nil)
     decision = nil
     until decision
-      @out.print "Overwrite #{relative_path(path)}? [y/n] "
       @out.print diff if diff
+      @out.print "Overwrite #{relative_path(path)}? [y/n] "
       decision = case @in.gets.chomp
       when 'y'
         :overwrite
