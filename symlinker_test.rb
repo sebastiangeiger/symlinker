@@ -2,7 +2,8 @@ require_relative 'symlinker'
 require 'minitest/spec'
 require 'minitest/autorun'
 require 'minitest/pride'
-require 'pry'
+require 'stringio'
+require 'pathname'
 
 describe Symlinker do
   def create_file(path, content = "Created by create_file", options = {})
