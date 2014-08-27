@@ -49,16 +49,22 @@ class Symlinker
 
   def generate_file(source, target)
     content = ERB.new(File.read(source)).result(binding)
-    if file_already_there?(target) and same_content?(content, target)
-      @ui.identical(source, target)
-      action = :dont_write
-    elsif not file_already_there?(target)
-      action = :write
-    end
-    if action == :write or action == :overwrite
+    write_file = lambda do
       File.open(target, 'w') do |new_file|
         new_file.write content
       end
+    end
+    if file_already_there?(target) and same_content?(content, target)
+      @ui.identical(source, target)
+    elsif file_already_there?(target)
+      if @ui.file_exists(target) == :overwrite
+        write_file.call
+        @ui.overwritten(source, target)
+      else
+        @ui.skipped(target)
+      end
+    else
+      write_file.call
       @ui.generated(source, target)
     end
   end

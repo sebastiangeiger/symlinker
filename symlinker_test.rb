@@ -114,12 +114,34 @@ describe Symlinker do
           IO.read("sandbox/new/file").must_equal "Hello, World!"
         end
       end
-      describe 'when the file exists but is identical' do
+      describe 'when the file exists' do
         before(:each) do
           create_dir "sandbox/new"
           create_file "sandbox/new/file", "Hello, World!", mtime: Time.now - 3660
         end
-        it 'expands the file first' do
+        describe 'and they are not identical' do
+          before(:each) do
+            ENV['variable'] = "Universe"
+            create_file "sandbox/existing/file.erb", "Hey, <%= ENV['variable'] %>!"
+          end
+          it 'overrides when the chooses to' do
+            ui.expect :file_exists, :overwrite, [File.absolute_path("sandbox/new/file")]
+            ui.expect :overwritten, nil, [File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file")]
+            symlinker.link!
+            ui.verify
+            IO.read("sandbox/new/file").must_equal "Hey, Universe!"
+            File.mtime("sandbox/new/file").must_be_close_to Time.now, 100
+          end
+          it 'does not override when the chooses to' do
+            ui.expect :file_exists, :dont_overwrite, [File.absolute_path("sandbox/new/file")]
+            ui.expect :skipped, nil, [File.absolute_path("sandbox/new/file")]
+            symlinker.link!
+            ui.verify
+            IO.read("sandbox/new/file").must_equal "Hello, World!"
+            File.mtime("sandbox/new/file").must_be_close_to Time.now - 3600, 100
+          end
+        end
+        it 'does not do anything if they are identical' do
           ui.expect :identical, nil, [File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file")]
           ENV['variable'] = "World"
           create_file "sandbox/existing/file.erb", "Hello, <%= ENV['variable'] %>!"
