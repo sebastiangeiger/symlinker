@@ -26,6 +26,28 @@ describe Symlinker do
     end
   end
 
+  describe '#prepend' do
+    before(:each) do
+      FileUtils.rm_rf("sandbox")
+      FileUtils.mkdir("sandbox")
+      FileUtils.mkdir("sandbox/from")
+    end
+    let(:symlinker) do
+      Symlinker.new(from: "sandbox/from", to: "sandbox/to", ui: SilentUi.new)
+    end
+    it 'changes the to path to the file' do
+      create_file "sandbox/from/file_1", "file_1"
+      symlinker.prepend_names_with(".").link!
+      IO.read("sandbox/to/.file_1").must_equal "file_1"
+    end
+    it 'changes the to path to the directory' do
+      create_dir  "sandbox/from/dir"
+      create_file "sandbox/from/dir/file_2", "file_2"
+      symlinker.prepend_names_with(".").link!
+      IO.read("sandbox/to/.dir/file_2").must_equal "file_2"
+    end
+  end
+
   describe '#ignore' do
     before(:each) do
       FileUtils.rm_rf("sandbox")

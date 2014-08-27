@@ -10,6 +10,7 @@ class Symlinker
     @to      = options[:to]
     @ui      = options[:ui] || SymlinkerUI.new
     @ignored = []
+    @prefix  = ""
     raise unless @to and @from
   end
 
@@ -18,10 +19,16 @@ class Symlinker
     self
   end
 
+  def prepend_names_with(prefix)
+    @prefix = prefix
+    self
+  end
+
   def link!
     FileUtils.mkdir(@to) unless File.directory?(@to)
     entries_to_link.each do |entry|
       relative_path = Symlinker.path_of(entry, relative_to: @from)
+      relative_path = @prefix + relative_path
       target = File.absolute_path(File.join(@to, "#{relative_path}"))
       source = File.absolute_path(entry)
       if source =~ /\.erb$/
