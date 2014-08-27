@@ -3,7 +3,7 @@ require 'minitest/spec'
 require 'minitest/autorun'
 require 'minitest/pride'
 require 'stringio'
-require 'pathname'
+require 'pry'
 
 describe Symlinker do
   def create_file(path, content = "Created by create_file", options = {})
@@ -125,7 +125,7 @@ describe Symlinker do
             create_file "sandbox/existing/file.erb", "Hey, <%= ENV['variable'] %>!"
           end
           it 'overrides when the chooses to' do
-            ui.expect :file_exists, :overwrite, [File.absolute_path("sandbox/new/file")]
+            ui.expect :erb_files_differ, :overwrite, [File.absolute_path("sandbox/new/file"), "Hello, World!", "Hey, Universe!"]
             ui.expect :overwritten, nil, [File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file")]
             symlinker.link!
             ui.verify
@@ -133,7 +133,7 @@ describe Symlinker do
             File.mtime("sandbox/new/file").must_be_close_to Time.now, 100
           end
           it 'does not override when the chooses to' do
-            ui.expect :file_exists, :dont_overwrite, [File.absolute_path("sandbox/new/file")]
+            ui.expect :erb_files_differ, :dont_overwrite, [File.absolute_path("sandbox/new/file"), "Hello, World!", "Hey, Universe!"]
             ui.expect :skipped, nil, [File.absolute_path("sandbox/new/file")]
             symlinker.link!
             ui.verify
@@ -193,6 +193,15 @@ describe SymlinkerUI do
     it 'prints the right message' do
       ui.generated(File.absolute_path("sandbox/existing/file.erb"),File.absolute_path("sandbox/new/file"))
       output_stream.string.must_equal "sandbox/new/file: Generated from sandbox/existing/file.erb\n"
+    end
+  end
+  describe '#erb_files_differ' do
+    it 'prints the right thing' do
+      input_stream.expect :gets, "y\n"
+      ui.erb_files_differ(File.absolute_path("sandbox/new/file"), "Existing", "New")
+      output_stream.string.must_include "Overwrite sandbox/new/file? [y/n] "
+      output_stream.string.must_include "Existing content:\nExisting\n---"
+      output_stream.string.must_include "---\nNew content:\nNew"
     end
   end
   describe '#file_exists' do

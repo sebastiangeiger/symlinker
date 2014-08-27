@@ -1,6 +1,8 @@
 #TODO: integrate into Rakefile
 require 'fileutils'
 require 'erb'
+require 'tempfile'
+require 'pathname'
 
 class Symlinker
   def initialize(options = {})
@@ -57,7 +59,7 @@ class Symlinker
     if file_already_there?(target) and same_content?(content, target)
       @ui.identical(source, target)
     elsif file_already_there?(target)
-      if @ui.file_exists(target) == :overwrite
+      if @ui.erb_files_differ(target,IO.read(target),content) == :overwrite
         write_file.call
         @ui.overwritten(source, target)
       else
@@ -109,10 +111,17 @@ class SymlinkerUI
   def generated(source, target)
     @out.puts "#{relative_path(target)}: Generated from #{relative_path(source)}"
   end
-  def file_exists(path)
+  def erb_files_differ(path,existing_content,new_content)
+    diff = "Existing content:\n#{existing_content}"
+    diff += "\n---\n"
+    diff += "New content:\n#{new_content}"
+    file_exists(path, diff)
+  end
+  def file_exists(path, diff = nil)
     decision = nil
     until decision
       @out.print "Overwrite #{relative_path(path)}? [y/n] "
+      @out.print diff if diff
       decision = case @in.gets.chomp
       when 'y'
         :overwrite
