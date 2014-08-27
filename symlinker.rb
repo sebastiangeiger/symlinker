@@ -29,23 +29,19 @@ class Symlinker
 
   private
   def link_helper(source,target)
-    identical = false
-    if file_already_there?(target)
-      if File.identical?(source,target)
-        @ui.identical(target)
-        identical = true
+    if file_already_there?(target) and File.identical?(source,target)
+      @ui.identical(target)
+      identical = true
+    elsif file_already_there?(target)
+      if @ui.file_exists(target) == :overwrite
+        FileUtils.ln_sf(source, target)
+        @ui.overwritten(source, target)
       else
-        response = @ui.file_exists(target)
+        @ui.skipped(target)
       end
-    end
-    if not file_already_there?(target)
+    else
       FileUtils.ln_s(source, target)
       @ui.linked(source, target)
-    elsif file_already_there?(target) and response == :overwrite
-      FileUtils.ln_sf(source, target)
-      @ui.overwritten(source, target)
-    elsif file_already_there?(target) and not identical
-      @ui.skipped(target)
     end
   end
 
